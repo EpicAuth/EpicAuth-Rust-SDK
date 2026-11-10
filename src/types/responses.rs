@@ -123,11 +123,15 @@ pub struct RawApiResponse {
     #[serde(alias = "sucess", default)]
     pub success: bool,
     #[serde(default)]
+    pub code: Option<i64>,
+    #[serde(default)]
     pub message: Option<String>,
     #[serde(alias = "sessionId", default)]
     pub sessionid: Option<String>,
     #[serde(default)]
     pub download: Option<String>,
+    #[serde(default)]
+    pub nonce: Option<String>,
     #[serde(alias = "appInfo", default)]
     pub appinfo: Option<RawAppInfo>,
     #[serde(default)]

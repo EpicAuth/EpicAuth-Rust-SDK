@@ -536,7 +536,18 @@ impl EpicAuth {
         params.insert("hwid", &hwid);
 
         let response = self.request("checkblacklist", params).await?;
-        Ok(response.success)
+
+        // In EpicAuth backend:
+        // - If blacklisted: success = true, message = "Client is blacklisted"
+        // - If clean: success = false, message = "Client is not blacklisted"
+        if response.success {
+            let msg = response
+                .message
+                .unwrap_or_else(|| "Client is blacklisted".to_string());
+            return self.fail(EpicAuthError::ApiError(msg));
+        }
+
+        Ok(false)
     }
 
     pub async fn log(&mut self, message: &str) -> Result<(), EpicAuthError> {
