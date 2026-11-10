@@ -5,6 +5,7 @@
   - [EpicAuth](#epicauth)
   - [EpicAuthBuilder](#epicauthbuilder)
   - [EpicAuthOptions](#epicauthoptions)
+  - [Lifecycle & Shared State Best Practice](#lifecycle--shared-state-best-practice)
 - [Client Methods](#client-methods)
   - [init](#init)
   - [license](#license)
@@ -82,6 +83,39 @@ use epicauth::EpicAuthOptions;
 let options = EpicAuthOptions::new("MyApp", "OwnerID", "1.0.0");
 let app = EpicAuth::new(options)?;
 ```
+
+### Lifecycle & Shared State Best Practice
+
+> [!IMPORTANT]
+> **Single Instance Lifecycle**: `EpicAuth` is designed to be built and initialized (`init()`) **only once** per application lifecycle. Do not create new instances in separate functions or HTTP handlers.
+>
+> To share `EpicAuth` across multiple tasks, threads, or GUI screens, wrap the instance in `Arc<tokio::sync::Mutex<EpicAuth>>`:
+>
+> ```rust
+> use epicauth::{EpicAuth, LicenseOptions};
+> use std::sync::Arc;
+> use tokio::sync::Mutex;
+>
+> // 1. Initialize once
+> let mut app = EpicAuth::builder()
+>     .name("MyApp")
+>     .ownerid("MyOwnerId")
+>     .version("1.0.0")
+>     .build()?;
+>
+> app.init().await?;
+> app.license(LicenseOptions::new("LICENSE-KEY")).await?;
+>
+> // 2. Wrap for thread-safe concurrent access
+> let shared_app = Arc::new(Mutex::new(app));
+>
+> // 3. Clone handle for tasks or GUI event loops
+> let task_app = Arc::clone(&shared_app);
+> tokio::spawn(async move {
+>     let mut client = task_app.lock().await;
+>     let val = client.getvar("secret").await;
+> });
+> ```
 
 ---
 

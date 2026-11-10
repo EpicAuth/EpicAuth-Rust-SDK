@@ -195,6 +195,44 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ---
 
+### 6. Sharing Across Threads & Tasks (`Arc<Mutex<EpicAuth>>`)
+
+`EpicAuth` is designed to be initialized **once** at application startup and shared across tasks or GUI components using thread-safe reference counting:
+
+```rust
+use epicauth::{EpicAuth, LicenseOptions};
+use std::sync::Arc;
+use tokio::sync::Mutex;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // 1. Initialize once
+    let mut app = EpicAuth::builder()
+        .name("YourApplication")
+        .ownerid("YourOwnerId")
+        .version("1.0.0")
+        .build()?;
+
+    app.init().await?;
+    app.license(LicenseOptions::new("XXXX-XXXX-XXXX-XXXX")).await?;
+
+    // 2. Wrap in Arc<Mutex<...>>
+    let shared_app = Arc::new(Mutex::new(app));
+
+    // 3. Share with background tasks or UI handlers
+    let task_app = Arc::clone(&shared_app);
+    tokio::spawn(async move {
+        let mut client = task_app.lock().await;
+        let config = client.var("remote_flag").await;
+        println!("Background task got config: {:?}", config);
+    });
+
+    Ok(())
+}
+```
+
+---
+
 ## API Overview
 
 | Method | Parameters | Description |

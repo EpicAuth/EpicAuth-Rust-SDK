@@ -19,13 +19,16 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 
 ## 2. Core Principles & Workflow
 
-1. **Always Call `init()` First**:
+1. **Single Instance Lifecycle (Singleton / Shared State)**:
+   Create and initialize `EpicAuth` **once** at application startup. Do **not** create separate `EpicAuth` instances or re-run `init()` inside disparate functions or request handlers. Re-initializing creates duplicate server sessions and risks rate-limiting or anti-abuse triggers. Share the initialized instance across your application using references or `Arc<tokio::sync::Mutex<EpicAuth>>`.
+
+2. **Always Call `init()` First**:
    All operations (`license`, `login`, `var`, `file`, etc.) require an active server session. Calling any method before `app.init().await?` will return `EpicAuthError::NotInitialized`.
 
-2. **Mutability**:
+3. **Mutability & State**:
    The `EpicAuth` instance must be declared as `mut` (`let mut app = ...`) because authentication and session updates modify internal state (`sessionid`, `user_data`, `app_data`).
 
-3. **Cryptographic Validation**:
+4. **Cryptographic Validation**:
    The SDK automatically validates Ed25519 signatures and checks for UTC clock drift ($\le 25\text{s}$) on responses. If users report signature failures, ensure their system time is synchronized.
 
 ---
@@ -96,6 +99,66 @@ async fn load_remote_assets(app: &mut EpicAuth) -> Result<Vec<u8>, Box<dyn std::
     // Download protected asset bytes directly
     let asset = app.file("protected_binary_id").await?;
     Ok(asset)
+}
+```
+
+### Pattern D: Sharing EpicAuth Across Tasks, Threads, or GUI (`Arc<Mutex<EpicAuth>>`)
+
+When using EpicAuth across asynchronous Tokio tasks, GUI handlers (Tauri, Slint, egui), or background workers, wrap the initialized client in `Arc<tokio::sync::Mutex<EpicAuth>>`:
+
+```rust
+use epicauth::{EpicAuth, LicenseOptions};
+use std::sync::Arc;
+use tokio::sync::Mutex;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // 1. Initialize ONCE during app startup
+    let mut app = EpicAuth::builder()
+        .name("YourAppName")
+        .ownerid("YourOwnerId")
+        .version("1.0.0")
+        .build()?;
+
+    app.init().await?;
+    app.license(LicenseOptions::new("XXXX-XXXX-XXXX-XXXX")).await?;
+
+    // 2. Wrap in Arc<Mutex<...>> for application-wide sharing
+    let shared_app = Arc::new(Mutex::new(app));
+
+    // 3. Clone handle for background tasks or event handlers
+    let task_app = Arc::clone(&shared_app);
+    tokio::spawn(async move {
+        let mut client = task_app.lock().await;
+        let config = client.getvar("remote_config").await;
+        println!("Config loaded in background: {:?}", config);
+    });
+
+    // 4. Access in the main routine or UI thread
+    {
+        let client = shared_app.lock().await;
+        if let Some(user) = &client.user_data {
+            println!("Active user: {}", user.username);
+        }
+    }
+
+    Ok(())
+}
+```
+
+### Pattern E: Global Singleton Access (`OnceCell`)
+
+For architectures requiring access from anywhere without explicitly threading references:
+
+```rust
+use epicauth::EpicAuth;
+use std::sync::Arc;
+use tokio::sync::{Mutex, OnceCell};
+
+pub static AUTH_CLIENT: OnceCell<Arc<Mutex<EpicAuth>>> = OnceCell::const_new();
+
+pub fn get_auth() -> &'static Arc<Mutex<EpicAuth>> {
+    AUTH_CLIENT.get().expect("EpicAuth not initialized")
 }
 ```
 
