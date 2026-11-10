@@ -225,7 +225,7 @@ pub async fn checkblacklist(&mut self) -> Result<bool, EpicAuthError>
 ```
 
 - `check()`: Validates that the current session token remains active on the server.
-- `checkblacklist()`: Queries whether the device's hardware ID is banned.
+- `checkblacklist()`: Queries whether the device's hardware ID is banned. Returns `true` if blacklisted, `false` otherwise.
 
 ### `log`
 
