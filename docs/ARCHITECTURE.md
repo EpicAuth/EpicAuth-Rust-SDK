@@ -54,8 +54,9 @@ In alignment with the official server implementation, the following request type
 HWID resolution dynamically identifies the client platform:
 
 1. **Windows**:
-   - Primary: Query registry `HKLM\SOFTWARE\Microsoft\Cryptography\MachineGuid`.
-   - Secondary: Query user SID via `wmic useraccount where name='...' get sid`.
+   - Primary: Query registry `HKLM\SOFTWARE\Microsoft\Cryptography\MachineGuid` directly in-memory via native Win32 API (`advapi32.dll` - `RegOpenKeyExW` / `RegQueryValueExW`). This eliminates child process spawning and guarantees zero console window popups in GUI programs (Tauri, Slint, egui, Win32).
+   - Secondary: Query registry via `reg.exe` using `CREATE_NO_WINDOW` (0x08000000).
+   - Tertiary: Query user SID via `wmic useraccount where name='...' get sid` using `CREATE_NO_WINDOW`.
 2. **Linux**:
    - Primary: Read `/etc/machine-id`.
    - Secondary: Read `/var/lib/dbus/machine-id`.
