@@ -1,0 +1,37 @@
+[package]
+name = "epicauth"
+version = "0.1.0"
+edition = "2021"
+authors = ["EpicAuth <support@epicauth.cc>"]
+description = "Official Rust SDK for EpicAuth - Modern licensing, authentication and software protection"
+license = "Elastic-2.0"
+repository = "https://github.com/EpicAuth/EpicAuth-Rust-SDK"
+homepage = "https://epicauth.cc"
+documentation = "https://docs.rs/epicauth"
+readme = "README.md"
+keywords = ["epicauth", "licensing", "authentication", "hwid", "anti-piracy"]
+categories = ["authentication", "api-bindings", "development-tools"]
+
+[dependencies]
+reqwest = { version = "0.12", default-features = false, features = [
+    "json",
+    "rustls-tls",
+] }
+tokio = { version = "1.43", features = [
+    "macros",
+    "rt-multi-thread",
+    "time",
+    "fs",
+    "process",
+] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0"
+ed25519-dalek = { version = "2.1", features = ["rand_core"] }
+hex = "0.4"
+sha2 = "0.10"
+chrono = { version = "0.4", features = ["serde"] }
+
+[dev-dependencies]
+tokio = { version = "1.43", features = ["full"] }
+rand = "0.8"
